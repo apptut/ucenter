@@ -1,0 +1,61 @@
+---
+# tasks file for nginx
+- name: "检测 nginx repo是否存在"
+  become: yes
+  remote_user: yuankan
+  stat:
+    path: "/etc/yum.repos.d/nginx.repo"
+  register: nginx_repo
+
+- name: "copy nginx yum repo"
+  remote_user: yuankan
+  copy:
+    src: "nginx.repo"
+    dest: "/home/yuankan/nginx.repo"
+  when: not nginx_repo.stat.exists
+
+- name: "mv nginx yum repo"
+  become: yes
+  remote_user: yuankan
+  command: mv /home/yuankan/nginx.repo /etc/yum.repos.d/nginx.repo
+  when: not nginx_repo.stat.exists
+
+- name: "install nginx"
+  become: yes
+  remote_user: yuankan
+  yum:
+    name: nginx
+    state: latest
+
+- name: "部署项目 nginx 相关配置文件"
+  remote_user: work
+  with_items:
+    - { src: "ucenter.yuankan.co.conf" }
+    - { src: "ucenter.yuankan.co.pem"}
+    - { src: "ucenter.yuankan.co.key"}
+  copy: src={{ item.src }} dest="{{ online_prj_dir }}/config/"
+  register: nginx_file
+
+- name: "检测 nginx 软链文件是否存在"
+  become: yes
+  remote_user: yuankan
+  stat:
+    path: /etc/nginx/conf.d/ucenter.yuankan.co.conf
+  register: nginx_ucenter
+
+- name: "软连 nginx 配置"
+  become: yes
+  remote_user: yuankan
+  file:
+    src: "{{ online_prj_dir }}/config/ucenter.yuankan.co.conf"
+    dest: /etc/nginx/conf.d/ucenter.yuankan.co.conf
+    state: link
+  when: not nginx_ucenter.stat.exists
+
+- name: "验证 nginx 配置文件"
+  become: yes
+  remote_user: yuankan
+  command: nginx -t
+  changed_when: nginx_file.changed
+  notify:
+    - restart nginx

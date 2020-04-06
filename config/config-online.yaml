@@ -1,0 +1,39 @@
+# 项目当前环境，支持："dev"、"test"、"stage"、"prod" 四种环境
+env: "prod"
+
+# mysql 数据库配置
+mysql_db:
+    host: "localhost"
+    port: "3306"
+    database: ""
+    username: ""
+    password: ""
+    timezone: "Asia/Shanghai"
+    timeout: 10000 # 单位: ms
+    read_time_out: 5000 # 单位: ms
+    write_time_out: 5000 # 单位: ms
+
+    # 链接池相关
+    conn_max_life_time: 5000 # 连接池连接超时时间，单位：ms
+    max_idle_conns: 1000 # 连接池，最大连接数
+
+server_name:
+    - "localhost"
+
+# redis
+redis:
+    addr: "127.0.0.1:6379" # 127.0.0.1:6379
+    password: ""
+    pool_size: 1000
+    idle_timeout: 1000 #单位：ms
+    retries: 3 # 重试次数
+
+# web服务监听端口
+http:
+    listen: "0.0.0.0:8080"
+
+# https
+#https:
+#    listen: "0.0.0.0:443"
+#    cert_file: ""
+#    cert_key: ""

@@ -1,0 +1,69 @@
+---
+  - name: "检测项目配置目录"
+    stat:
+      path: "{{online_prj_dir}}/config"
+    register: online_config
+
+  - name: "{{online_prj_dir}}/config 不存在，创建目录"
+    file:
+      path: "{{online_prj_dir}}/config"
+      state: directory
+      recurse: yes
+      mode: 0755
+    when: not (online_config.stat.exists and online_config.stat.isdir)
+
+  - name: "拷贝线上配置文件"
+    copy:
+      src: "{{prj_dir}}/config/config-online.yaml"
+      dest: "{{online_prj_dir}}/config/config.yaml"
+
+  # 编译 go 代码
+  - name: "编译本地Go文件"
+    connection: local
+    shell: "GOPROXY=https://goproxy.io GOOS=linux GOARCH=amd64 go build -o {{prj_dir}}/bin/ucenter {{prj_dir}}/main.go"
+
+  # 拷贝编译后的文件到线上机器
+  - name: "获取线上目录状态"
+    stat:
+      path: "{{online_prj_dir}}/bin"
+    register: online_dir
+
+  - name: "{{online_prj_dir}}/bin 不存在，创建目录"
+    file:
+      path: "{{online_prj_dir}}/bin"
+      state: directory
+      mode: 0755
+      recurse: yes
+    when: not (online_dir.stat.exists and online_dir.stat.isdir)
+
+  - name: "部署go文件"
+    copy:
+      src: "{{prj_dir}}/bin/ucenter"
+      dest: "{{online_prj_dir}}/bin/"
+      mode: 0755
+    register: go_file
+
+  - name: "检测go进程是否启动"
+    shell: ps -ef | grep ucenter | grep -v grep | awk '{print $2}'
+    register: go_process
+
+  - name: "start go"
+    remote_user: work
+    shell: nohup /home/work/www/ucenter/bin/ucenter -prjHome=/home/work/www/ucenter/ >/tmp/ucenter.daemon.log 2>&1 &
+    async: 45
+    poll: 0
+    when: go_process.stdout == ''
+
+  - name: "restart go"
+    remote_user: work
+    shell: "kill -s USR2 {{ go_process.stdout }}"
+    when: go_process.stdout != '' and go_file.changed
+
+  - name: "验证go进程是否正常"
+    shell: ps -ef | grep ucenter | grep -v grep | awk '{print $2}'
+    register: go_process
+    when: go_process.changed
+
+  - fail:
+      msg: "go 进程重启失败！"
+    when: go_process.changed and go_process.stdout == ''

@@ -1,0 +1,10 @@
+---
+- name: "部署线上环境"
+  hosts: online
+  remote_user: work
+  vars:
+    prj_dir: "{{ playbook_dir | dirname }}"
+    online_prj_dir: "/home/work/www/ucenter"
+  roles:
+    - project
+    - nginx
