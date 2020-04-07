@@ -22,8 +22,9 @@ func GenToken(model *models.User) (string, *rsp.Error) {
 	uid := strconv.Itoa(int(model.ID))
 	token := crypto.SHA256(uid + randStr + model.Mobile + now)
 
-	err := app.Redis().Set("login:"+uid+":"+token, uid, time.Hour*4).Err()
-	if err != nil {
+	err := app.Redis().Set("login:"+token, uid, time.Hour*4).Err()
+	lErr := app.Redis().Set("login:uid:" + uid, uid, 0)
+	if err != nil && lErr != nil {
 		return "", rsp.NewErr(err)
 	}
 
@@ -46,12 +47,12 @@ func UserInfoValid(ctx *gin.Context) (*models.User, *rsp.Error) {
 
 	// 判断用户是否已经登录
 	uid := strconv.Itoa(int(model.ID))
-	rels, err := app.Redis().Keys("login:" + uid + ":*").Result()
+	exists, err := app.Redis().Get("login:uid:" + uid).Result()
 	if err != nil && err != redis.Nil {
 		return nil, rsp.NewErr(err)
 	}
 
-	if rels != nil && len(rels) > 0 {
+	if exists != ""{
 		return nil, rsp.NewErrMsg("用户已登录")
 	}
 
